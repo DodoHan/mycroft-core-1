@@ -30,9 +30,8 @@ from mycroft.enclosure.api import EnclosureAPI
 from mycroft.configuration import Configuration
 from mycroft.messagebus.message import Message
 from mycroft.metrics import report_timing, Stopwatch
-from mycroft.util import (
-    play_wav, play_mp3, check_for_signal, create_signal, resolve_resource_file
-)
+from mycroft.util import (play_wav, play_mp3, check_for_signal, create_signal,
+                          resolve_resource_file, play_wav_sync, play_mp3_sync)
 from mycroft.util.file_utils import get_temp_path
 from mycroft.util.log import LOG
 from mycroft.util.plugins import load_plugin
@@ -104,12 +103,23 @@ class PlaybackThread(Thread):
 
                 stopwatch = Stopwatch()
                 with stopwatch:
-                    if snd_type == 'wav':
-                        self.p = play_wav(data, environment=self.pulse_env)
-                    elif snd_type == 'mp3':
-                        self.p = play_mp3(data, environment=self.pulse_env)
+                    LOG.info('[Flow Learning] in tts.py PlaybackThread.run!!')
+                    # mycroft-zh: config flag of converting mp3 to wav to play, which can fix the perform issue in Raspberry.
+                    if True:
+                        if snd_type == 'wav':
+                            play_wav_sync(data)
+                        elif snd_type == 'mp3':
+                            play_mp3_sync(data)
+                    else:
+                        if snd_type == 'wav':
+                            self.p = play_wav(data, environment=self.pulse_env)
+                        elif snd_type == 'mp3':
+                            self.p = play_mp3(data, environment=self.pulse_env)
+
+                    LOG.info('[Flow Learning] p.terminate()')
                     if visemes:
                         self.show_visemes(visemes)
+                    #  Mycroft-zh: Is not used when config flag of converting mp3 to wav to play == True
                     if self.p:
                         self.p.communicate()
                         self.p.wait()
@@ -373,6 +383,7 @@ class TTS(metaclass=ABCMeta):
                 #  API of the get_tts method in each engine.
                 audio_file = self.cache.define_audio_file(sentence_hash)
                 # TODO 21.08: remove mutation of audio_file.path.
+                LOG.info('[Flow Learning] in TTS._execute(), to get audio by calling get_tts')
                 returned_file, phonemes = self.get_tts(
                     sentence, str(audio_file.path))
                 # Convert to Path as needed
@@ -397,6 +408,7 @@ class TTS(metaclass=ABCMeta):
                     audio_file, phoneme_file
                 )
             viseme = self.viseme(phonemes) if phonemes else None
+            LOG.info('[Flow Learning] in TTS._execute(), put message for TTS audio into the queue, ')
             self.queue.put(
                 (self.audio_ext, str(audio_file.path), viseme, ident, l)
             )

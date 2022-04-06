@@ -20,6 +20,7 @@ import os
 import pyaudio
 import re
 import subprocess
+import wave
 
 import mycroft.configuration
 from .log import LOG
@@ -40,8 +41,8 @@ def play_audio_file(uri: str, environment=None):
              an error occurs playing the file.
     """
     extension_to_function = {
-        '.wav': play_wav,
-        '.mp3': play_mp3,
+        '.wav': play_wav_sync,
+        '.mp3': play_mp3_sync,
         '.ogg': play_ogg
     }
     _, extension = os.path.splitext(uri)
@@ -86,12 +87,15 @@ def _play_cmd(cmd, uri, config, environment):
     environment = environment or _get_pulse_environment(config)
     cmd_elements = str(cmd).split(" ")
     cmdline = [e if e != '%1' else uri for e in cmd_elements]
+    LOG.info('[Flow Learning] in audio_utils.py, cmdline, env :' + str(cmdline) + ', ' + str(environment))
+    LOG.info('[Flow Learning] in audio_utils.py, subprocess.Popen()')
     return subprocess.Popen(cmdline, env=environment)
 
 
 def play_wav(uri, environment=None):
     """Play a wav-file.
 
+    Note (mycroft-zh): this method has performance issue under Raspberry 4b.
     This will use the application specified in the mycroft config
     and play the uri passed as argument. The function will return directly
     and play the file in the background.
@@ -104,6 +108,7 @@ def play_wav(uri, environment=None):
     """
     config = mycroft.configuration.Configuration.get()
     play_wav_cmd = config['play_wav_cmdline']
+    LOG.info('[Flow Learning] in audio_utils.py.play_wav(), play_wav_cmd, uri ' + str(play_wav_cmd) + ', ' + str(uri))
     try:
         return _play_cmd(play_wav_cmd, uri, config, environment)
     except FileNotFoundError as e:
@@ -114,9 +119,74 @@ def play_wav(uri, environment=None):
     return None
 
 
+def play_wav_sync(uri):
+    """Play a wav-file.
+
+    Note (mycroft-zh): this method fixed the performance issue under Raspberry 4b.
+
+    Args:
+        uri:    uri to play
+    """
+    CHUNK = 1024
+    LOG.info('[Flow Learning] in audio_utils.py.play_wav_sync, open wav')
+
+    try:
+        wf = wave.open(r''+uri, 'rb')
+
+        p = pyaudio.PyAudio()
+
+        stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                        channels=wf.getnchannels(),
+                        rate=wf.getframerate(),
+                        output=True)
+
+        data = wf.readframes(CHUNK)
+
+        LOG.info('[Flow Learning] in audio_utils.py.play_wav_sync, start to play!')
+
+        while data != b'':
+            # LOG.info('[Flow Learning] in while to fetch data')
+            stream.write(data)
+            data = wf.readframes(CHUNK)
+            # LOG.info('[Flow Learning] in while data=' + str(data))
+
+        LOG.info('[Flow Learning] in audio_utils.py.play_wav_sync, Stop stream!')
+        stream.stop_stream()
+        stream.close()
+
+        LOG.info('[Flow Learning] in audio_utils.py.play_wav_sync, pyaudio.terminate()')
+        p.terminate()
+    except FileNotFoundError as e:
+        LOG.error("Failed to launch WAV: {} ({})".format(repr(e)))
+    except Exception:
+        LOG.exception("Failed to launch WAV: {}".format(uri))
+
+
+def play_mp3_sync(uri):
+    uri_wav = uri + '.wav'
+    subp = convert_mp3_to_wav(uri, uri_wav)
+    if subp:
+        subp.wait()
+        play_wav_sync(uri_wav)
+
+
+def convert_mp3_to_wav(uri, uri_wav):
+    try:
+        cmdlineArray = ['mpg123', '-w', uri_wav, uri]
+        return subprocess.Popen(cmdlineArray)
+    except FileNotFoundError as e:
+        LOG.error("Failed to convert MP3 to WAV: {} ({})".format(
+            ''.join(cmdlineArray), repr(e)))
+    except Exception:
+        LOG.exception("Failed to convert MP3 to WAV: {}".format(
+            ''.join(cmdlineArray)))
+    return None
+
+
 def play_mp3(uri, environment=None):
     """Play a mp3-file.
 
+    Note (mycroft-zh): this method has performance issue under Raspberry 4b.
     This will use the application specified in the mycroft config
     and play the uri passed as argument. The function will return directly
     and play the file in the background.
@@ -129,6 +199,7 @@ def play_mp3(uri, environment=None):
     """
     config = mycroft.configuration.Configuration.get()
     play_mp3_cmd = config.get("play_mp3_cmdline")
+    LOG.info('[Flow Learning] in audio_utils.py.play_mp3(), play_mp3_cmd, uri ' + str(play_mp3_cmd) + str(uri))
     try:
         return _play_cmd(play_mp3_cmd, uri, config, environment)
     except FileNotFoundError as e:
