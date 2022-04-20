@@ -25,6 +25,7 @@ from mycroft.api import STTApi, HTTPError
 from mycroft.configuration import Configuration
 from mycroft.util.log import LOG
 from mycroft.util.plugins import load_plugin
+from mycroft.util.file_utils import get_temp_path
 
 
 class STT(metaclass=ABCMeta):
@@ -691,18 +692,18 @@ class MicrosoftSTT(STT):
         some_bytes = waveData
 
         # Open file in binary write mode
-        # Shore to do: to place the tmp file to a better place.
-        file_name = "./microsoft_stt_tmp.wav"
-        LOG.info("Temp voice file_name for Microsoft STT == " + file_name)
-        binary_file = open(file_name, "wb")
-        tmp_file_path = os.path.abspath(__file__)
+        # It goes to /tmp/mycroft
+        file_name = "microsoft_stt_tmp.wav"
+        file_path = get_temp_path("mycroft", file_name)
+        LOG.info("Temp voice file_name for Microsoft STT == " + file_path)
+        binary_file = open(file_path, "wb")
 
         # Write bytes to file
         binary_file.write(some_bytes)
         # Close file
         binary_file.close()
 
-        audio_config = self.speechsdk.audio.AudioConfig(filename=file_name)
+        audio_config = self.speechsdk.audio.AudioConfig(filename=file_path)
         # Creates a speech recognizer using a file as audio input, also specify the speech language
         speech_recognizer = self.speechsdk.SpeechRecognizer(
             speech_config=self.speech_config,
