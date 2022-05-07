@@ -579,6 +579,7 @@ class TTSFactory:
     from mycroft.tts.polly_tts import PollyTTS
     from mycroft.tts.mozilla_tts import MozillaTTS
     from mycroft.tts.baidu_tts import BaiduTTS
+    from mycroft.tts.microsoft_tts import MicrosoftTTS
 
     CLASSES = {
         "mimic": Mimic,
@@ -596,7 +597,8 @@ class TTSFactory:
         "polly": PollyTTS,
         "mozilla": MozillaTTS,
         "dummy": DummyTTS,
-        "baidu": BaiduTTS
+        "baidu": BaiduTTS,
+        "microsoft": MicrosoftTTS,
     }
 
     @staticmethod
