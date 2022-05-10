@@ -460,7 +460,11 @@ class ResponsiveRecognizer(speech_recognition.Recognizer):
 
             energy = self.calc_energy(chunk, source.SAMPLE_WIDTH)
             test_threshold = self.energy_threshold * self.multiplier
-            is_loud = energy > test_threshold
+            # Shore: Begin of changing to improve the case that the noise is loud.
+            # is_loud = energy > test_threshold
+            shore_energy_of_valid_voice_is_louder_than_noise = 300
+            is_loud = energy > test_threshold and energy > shore_energy_of_valid_voice_is_louder_than_noise
+            # Shore: End of changing to improve the case that the noise is loud.
             noise_tracker.update(is_loud)
             if not is_loud:
                 self._adjust_threshold(energy, sec_per_buffer)

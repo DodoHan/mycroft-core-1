@@ -20,9 +20,9 @@ from mycroft.configuration import Configuration, set_default_lf_lang
 from mycroft.util.log import LOG
 from mycroft.util.parse import normalize
 from mycroft.metrics import report_timing, Stopwatch
-from .intent_services import (
-    AdaptService, AdaptIntent, FallbackService, PadatiousService, BaiduIntentMatchService, IntentMatch
-)
+from .intent_services import (AdaptService, FallbackService, AdaptIntent, 
+                              PadatiousService, BaiduIntentMatchService,
+                              IntentMatch)
 from .intent_service_interface import open_intent_envelope
 
 
@@ -54,15 +54,16 @@ def _normalize_all_utterances(utterances):
         list of tuples, [(original utterance, normalized) ... ]
     """
     # normalize() changes "it's a boy" to "it is a boy", etc.
-    norm_utterances = [normalize(u.lower(), remove_articles=False)
-                       for u in utterances]
+    norm_utterances = [
+        normalize(u.lower(), remove_articles=False) for u in utterances
+    ]
 
     # Create pairs of original and normalized counterparts for each entry
     # in the input list.
     combined = []
     for utt, norm in zip(utterances, norm_utterances):
         if utt == norm:
-            combined.append((utt,))
+            combined.append((utt, ))
         else:
             combined.append((utt, norm))
 
@@ -76,6 +77,7 @@ class IntentService:
     The intent service also provides the internal API for registering and
     querying the intent service.
     """
+
     def __init__(self, bus):
         LOG.info('[Flow Learning] IntentService is initializing...')
         # Dictionary for translating a skill id to a name
@@ -86,7 +88,8 @@ class IntentService:
         # mycroft-core-zh:
         self.baidu_intent_match_service = None
         if True:
-            self.baidu_intent_match_service = BaiduIntentMatchService(config['baidu_nlu'])
+            self.baidu_intent_match_service = BaiduIntentMatchService(
+                config['baidu_nlu'])
         self.adapt_service = AdaptService(config.get('context', {}))
         try:
             self.padatious_service = PadatiousService(bus, config['padatious'])
@@ -112,7 +115,9 @@ class IntentService:
         self.bus.on('mycroft.skills.loaded', self.update_skill_name_dict)
 
         def add_active_skill_handler(message):
-            LOG.info('[Flow Learning] in add_active_skill_handler, to call add_active_skill')
+            LOG.info(
+                '[Flow Learning] in add_active_skill_handler, to call add_active_skill'
+            )
             self.add_active_skill(message.data['skill_id'])
 
         self.bus.on('active_skill_request', add_active_skill_handler)
@@ -120,16 +125,14 @@ class IntentService:
         # mycroft-core-zh
         def deactive_skill_handler(message):
             LOG.info(
-                '[Flow Learning] in deactive_skill_handler, message.data'
-                + '["skill_id"]='
-                + str(message.data['skill_id']))
+                '[Flow Learning] in deactive_skill_handler, message.data' +
+                '["skill_id"]=' + str(message.data['skill_id']))
             deactived = self.deactive_skill(message.data['skill_id'])
 
             message_data = {'result': deactived}
-            LOG.info(
-                '[Flow Learning]'
-                + ' in deactive_skill_handler to send message_data='
-                + str(message_data))
+            LOG.info('[Flow Learning]' +
+                     ' in deactive_skill_handler to send message_data=' +
+                     str(message_data))
             message_response = message.reply('deactive_skill_request.response',
                                              data=message_data)
             LOG.info('[Flow Learning] in deactive_skill_handler ' +
@@ -153,8 +156,7 @@ class IntentService:
                     self.handle_adapt_manifest)
         self.bus.on('intent.service.adapt.vocab.manifest.get',
                     self.handle_vocab_manifest)
-        self.bus.on('intent.service.padatious.get',
-                    self.handle_get_padatious)
+        self.bus.on('intent.service.padatious.get', self.handle_get_padatious)
         self.bus.on('intent.service.padatious.manifest.get',
                     self.handle_padatious_manifest)
         self.bus.on('intent.service.padatious.entities.manifest.get',
@@ -162,8 +164,10 @@ class IntentService:
 
     @property
     def registered_intents(self):
-        return [parser.__dict__
-                for parser in self.adapt_service.engine.intent_parsers]
+        return [
+            parser.__dict__
+            for parser in self.adapt_service.engine.intent_parsers
+        ]
 
     def update_skill_name_dict(self, message):
         """Messagebus handler, updates dict of id to skill name conversions."""
@@ -198,8 +202,18 @@ class IntentService:
             message (Message): message containing interaction info.
         """
         LOG.info('[Flow Learning] in do_converse, ')
-        converse_msg = (message.reply("skill.converse.request", {
-            "skill_id": skill_id, "utterances": utterances, "lang": lang}))
+        LOG.info('skill_id == ' + skill_id)
+        converse_msg = (message.reply(
+            "skill.converse.request", {
+                "skill_id": skill_id,
+                "utterances": utterances,
+                "lang": lang
+            }))
+        # Shore: wait_for_response() comes from mycroft_bus_client/client.py
+        # Arguments:
+        #   message (Message): message to send.
+        #   reply_type (str): the message type of the expected reply.
+        #                     Defaults to "<message.msg_type>.response".
         result = self.bus.wait_for_response(converse_msg,
                                             'skill.converse.response')
         if result and 'error' in result.data:
@@ -229,12 +243,14 @@ class IntentService:
         Args:
             skill_id (str): skill to remove
         """
-        LOG.info('[Flow Learning] active_skills before removal' + str(self.active_skills))
+        LOG.info('[Flow Learning] active_skills before removal' +
+                 str(self.active_skills))
         for skill in self.active_skills:
             if skill[0] == skill_id:
                 LOG.info('[Flow Learning] remove skill_id : ' + skill_id)
                 self.active_skills.remove(skill)
-        LOG.info('[Flow Learning] active_skills after removal' + str(self.active_skills))
+        LOG.info('[Flow Learning] active_skills after removal' +
+                 str(self.active_skills))
 
     # mycroft-core-zh:
     # only deactive the skill but not remove it from the list of active_skills.
@@ -259,14 +275,21 @@ class IntentService:
     def refresh_active_skill(self, skill_id):
         whetherRemoveSkill = False
         for skill in self.active_skills:
-            if skill[0] == skill_id and skill[1] == self.deactive_skill_indicator:
-                LOG.info('[Flow Learning] remove_skill is to be called, skill_id : ' + skill_id)
+            if skill[0] == skill_id and skill[
+                    1] == self.deactive_skill_indicator:
+                LOG.info(
+                    '[Flow Learning] remove_skill is to be called, skill_id : '
+                    + skill_id)
                 whetherRemoveSkill = True
         if whetherRemoveSkill:
-            LOG.info('[Flow Learning] in refresh_active_skill, remove_skill is to be called, skill_id : ' + skill_id)
+            LOG.info(
+                '[Flow Learning] in refresh_active_skill, remove_skill is to be called, skill_id : '
+                + skill_id)
             self.remove_active_skill(skill_id)
         else:
-            LOG.info('[Flow Learning] in refresh_active_skill, add_active_skill is to be called, skill_id : ' + skill_id)
+            LOG.info(
+                '[Flow Learning] in refresh_active_skill, add_active_skill is to be called, skill_id : '
+                + skill_id)
             self.add_active_skill(skill_id)
 
     def add_active_skill(self, skill_id):
@@ -280,7 +303,8 @@ class IntentService:
         """
         # search the list for an existing entry that already contains it
         # and remove that reference
-        LOG.info('[Flow Learning] in add_active_skill, skill_id = ' + str(skill_id))
+        LOG.info('[Flow Learning] in add_active_skill, skill_id = ' +
+                 str(skill_id))
         if skill_id != '':
             self.remove_active_skill(skill_id)
             # add skill with timestamp to start of skill_list
@@ -324,71 +348,43 @@ class IntentService:
         generated by a spoken interaction but potentially also from a CLI
         or other method of injecting a 'user utterance' into the system.
 
-        Utterances then work through this sequence to be handled:
-        1) Active skills attempt to handle using converse()
-        1.5) Baidu NLU somehow match intents -- used for mycroft-core-zh
-        2) Padatious high match intents (conf > 0.95)
-        3) Adapt intent handlers
-        5) High Priority Fallbacks
-        6) Padatious near match intents (conf > 0.8)
-        7) General Fallbacks
-        8) Padatious loose match intents (conf > 0.5)
-        9) Catch all fallbacks including Unknown intent handler
-
-        If all these fail the complete_intent_failure message will be sent
-        and a generic info of the failure will be spoken.
-
         Args:
             message (Message): The messagebus data
         """
-        LOG.info('[Flow Learning] in mycroft.skills.intent_service.py.IntentService.handle_utterance, try to match utterance with Mycroft skills or some handle.')
-        LOG.info('[Flow Learning] in mycroft.skills.intent_service.py.IntentService.handle_utterance, active_skills = ' + str(self.active_skills))
+        LOG.info(
+            '[Flow Learning] in mycroft.skills.intent_service.py.IntentService.handle_utterance, try to match utterance with Mycroft skills or some handle.'
+        )
+        LOG.info(
+            '[Flow Learning] in mycroft.skills.intent_service.py.IntentService.handle_utterance, active_skills = '
+            + str(self.active_skills))
         try:
             lang = _get_message_lang(message)
             set_default_lf_lang(lang)
 
             utterances = message.data.get('utterances', [])
-            LOG.info('[Flow Learning] in mycroft.skills.intent_service.py.IntentService.handle_utterance, utterances= ' + str(utterances))
+            LOG.info(
+                '[Flow Learning] in mycroft.skills.intent_service.py.IntentService.handle_utterance, utterances= '
+                + str(utterances))
             combined = _normalize_all_utterances(utterances)
 
             stopwatch = Stopwatch()
+            # Shore:
+            '''
+            为了减少修改，尽量使用原来系统提供的方式。
+            （
+                原来的方式的一个可能的路径是：
+                对接收到的utterance， 向当前active的skill调用converse方法 （不是直接调用，而是向总线里发送一个message，该message给出调用哪个skill的信息）
+            ）
 
-            # List of functions to use to match the utterance with intent.
-            # These are listed in priority order.
-            match_funcs = [
-                self._converse, self.baidu_intent_match_service.match_intent, self.padatious_service.match_high,
-                self.adapt_service.match_intent, self.fallback.high_prio,
-                self.padatious_service.match_medium, self.fallback.medium_prio,
-                self.padatious_service.match_low, self.fallback.low_prio
-            ]
-
-            match = None
+            现在，
+            实现了一个skill-rasa的技能，但并不需要写出@intent_handler
+            每次作handle_utterance都只是去调用技能skill-rasa的converse方法。
+            '''
+            skill_id = 'skill-rasa'
             with stopwatch:
-                # Loop through the matching functions until a match is found.
-                for match_func in match_funcs:
-                    match = match_func(combined, lang, message)
-                    if match:
-                        break
-            if match:
-                LOG.info('[Flow Learning] A skill or handle is matched. match.skill_id = ' + str(match.skill_id) + ', match.intent_type = ' + str(match.intent_type))
-                if match.skill_id:
-                    LOG.info('[Flow Learning] matched and is about to add_active_skill, skill_id ==' + match.skill_id)
-                    # mycroft-core-zh: change this for the scenario that skill ends.
-                    self.refresh_active_skill(match.skill_id)
-                    # If the service didn't report back the skill_id it
-                    # takes on the responsibility of making the skill "active"
+                self.do_converse(utterances, skill_id, lang, message)
 
-                # Launch skill if not handled by the match function
-                if match.intent_type:
-                    reply = message.reply(match.intent_type, match.intent_data)
-                    self.bus.emit(reply)
-
-            else:
-                # Nothing was able to handle the intent
-                # Ask politely for forgiveness for failing in this vital task
-                LOG.info('[Flow Learning] Nothing matches, ask politely for forgiveness.')
-                self.send_complete_intent_failure(message)
-            self.send_metrics(match, message.context, stopwatch)
+            #self.send_metrics(match, message.context, stopwatch)
         except Exception as err:
             LOG.exception(err)
 
@@ -402,18 +398,24 @@ class IntentService:
 
         Returns:
             IntentMatch if handled otherwise None.
+            Shore: please note: when do_converse is done successfully, we return None for the intent_type and intent_data. 
         """
         LOG.info('[Flow learning] in intent_service.py._converse ')
         utterances = [item for tup in utterances for item in tup]
         # check for conversation time-out
-        self.active_skills = [skill for skill in self.active_skills
-                              if time.time() - skill[
-                                  1] <= self.converse_timeout * 60]
-        LOG.info('[Flow learning] in intent_service.py._converse active skills = ' + str(self.active_skills))
+        self.active_skills = [
+            skill for skill in self.active_skills
+            if time.time() - skill[1] <= self.converse_timeout * 60
+        ]
+        LOG.info(
+            '[Flow learning] in intent_service.py._converse active skills = ' +
+            str(self.active_skills))
 
         # check if any skill wants to handle utterance
         for skill in copy(self.active_skills):
-            LOG.info('[Flow learning] in intent_service.py._converse in loop, active skills = ' + str(skill))
+            LOG.info(
+                '[Flow learning] in intent_service.py._converse in loop, active skills = '
+                + str(skill))
             if self.do_converse(utterances, skill[0], lang, message):
                 # update timestamp, or there will be a timeout where
                 # intent stops conversing whether its being used or not
@@ -426,7 +428,8 @@ class IntentService:
         Args:
             message (Message): original message to forward from
         """
-        LOG.info('[Flow Learning] send message of complete_intent_failure to bus.')
+        LOG.info(
+            '[Flow Learning] send message of complete_intent_failure to bus.')
         self.bus.emit(message.forward('complete_intent_failure'))
 
     def handle_register_vocab(self, message):
@@ -439,8 +442,8 @@ class IntentService:
         end_concept = message.data.get('end')
         regex_str = message.data.get('regex')
         alias_of = message.data.get('alias_of')
-        self.adapt_service.register_vocab(start_concept, end_concept,
-                                          alias_of, regex_str)
+        self.adapt_service.register_vocab(start_concept, end_concept, alias_of,
+                                          regex_str)
         self.registered_vocab.append(message.data)
 
     # mycroft-core-zh: register the intent into adapt's engine, so that engine can work.
@@ -455,7 +458,9 @@ class IntentService:
 
     # mycroft-core-zh
     def handle_register_baidu_intent(self, message):
-        LOG.info('[Flow Learning] in intent_service.py handle_register_baidu_intent, no need to do anything. ')
+        LOG.info(
+            '[Flow Learning] in intent_service.py handle_register_baidu_intent, no need to do anything. '
+        )
         pass
 
     def handle_detach_intent(self, message):
@@ -517,7 +522,9 @@ class IntentService:
         Args:
             message (Message): message containing utterance
         """
-        LOG.info('[Flow Learning] in handle_get_intent !!!!!!!!!!   intent.service.intent.get message is used!!')
+        LOG.info(
+            '[Flow Learning] in handle_get_intent !!!!!!!!!!   intent.service.intent.get message is used!!'
+        )
         utterance = message.data["utterance"]
         lang = message.data.get("lang", "en-us")
         combined = _normalize_all_utterances([utterance])
@@ -545,13 +552,14 @@ class IntentService:
                     intent_data["intent_service"] = match.intent_service
                     intent_data["skill_id"] = match.skill_id
                     intent_data["handler"] = match_func.__name__
-                    self.bus.emit(message.reply("intent.service.intent.reply",
-                                                {"intent": intent_data}))
+                    self.bus.emit(
+                        message.reply("intent.service.intent.reply",
+                                      {"intent": intent_data}))
                 return
 
         # signal intent failure
-        self.bus.emit(message.reply("intent.service.intent.reply",
-                                    {"intent": None}))
+        self.bus.emit(
+            message.reply("intent.service.intent.reply", {"intent": None}))
 
     def handle_get_skills(self, message):
         """Send registered skills to caller.
@@ -559,8 +567,9 @@ class IntentService:
         Argument:
             message: query message to reply to.
         """
-        self.bus.emit(message.reply("intent.service.skills.reply",
-                                    {"skills": self.skill_names}))
+        self.bus.emit(
+            message.reply("intent.service.skills.reply",
+                          {"skills": self.skill_names}))
 
     def handle_get_active_skills(self, message):
         """Send active skills to caller.
@@ -568,8 +577,9 @@ class IntentService:
         Argument:
             message: query message to reply to.
         """
-        self.bus.emit(message.reply("intent.service.active_skills.reply",
-                                    {"skills": self.active_skills}))
+        self.bus.emit(
+            message.reply("intent.service.active_skills.reply",
+                          {"skills": self.active_skills}))
 
     def handle_get_adapt(self, message):
         """handler getting the adapt response for an utterance.
@@ -582,8 +592,9 @@ class IntentService:
         combined = _normalize_all_utterances([utterance])
         intent = self.adapt_service.match_intent(combined, lang)
         intent_data = intent.intent_data if intent else None
-        self.bus.emit(message.reply("intent.service.adapt.reply",
-                                    {"intent": intent_data}))
+        self.bus.emit(
+            message.reply("intent.service.adapt.reply",
+                          {"intent": intent_data}))
 
     def handle_adapt_manifest(self, message):
         """Send adapt intent manifest to caller.
@@ -591,8 +602,9 @@ class IntentService:
         Argument:
             message: query message to reply to.
         """
-        self.bus.emit(message.reply("intent.service.adapt.manifest",
-                                    {"intents": self.registered_intents}))
+        self.bus.emit(
+            message.reply("intent.service.adapt.manifest",
+                          {"intents": self.registered_intents}))
 
     def handle_vocab_manifest(self, message):
         """Send adapt vocabulary manifest to caller.
@@ -600,8 +612,9 @@ class IntentService:
         Argument:
             message: query message to reply to.
         """
-        self.bus.emit(message.reply("intent.service.adapt.vocab.manifest",
-                                    {"vocab": self.registered_vocab}))
+        self.bus.emit(
+            message.reply("intent.service.adapt.vocab.manifest",
+                          {"vocab": self.registered_vocab}))
 
     def handle_get_padatious(self, message):
         """messagebus handler for perfoming padatious parsing.
@@ -616,8 +629,9 @@ class IntentService:
             intent = self.padatious_service.calc_intent(norm)
         if intent:
             intent = intent.__dict__
-        self.bus.emit(message.reply("intent.service.padatious.reply",
-                                    {"intent": intent}))
+        self.bus.emit(
+            message.reply("intent.service.padatious.reply",
+                          {"intent": intent}))
 
     def handle_padatious_manifest(self, message):
         """Messagebus handler returning the registered padatious intents.
@@ -625,9 +639,10 @@ class IntentService:
         Args:
             message (Message): message triggering the method
         """
-        self.bus.emit(message.reply(
-            "intent.service.padatious.manifest",
-            {"intents": self.padatious_service.registered_intents}))
+        self.bus.emit(
+            message.reply(
+                "intent.service.padatious.manifest",
+                {"intents": self.padatious_service.registered_intents}))
 
     def handle_entity_manifest(self, message):
         """Messagebus handler returning the registered padatious entities.
@@ -635,6 +650,7 @@ class IntentService:
         Args:
             message (Message): message triggering the method
         """
-        self.bus.emit(message.reply(
-            "intent.service.padatious.entities.manifest",
-            {"entities": self.padatious_service.registered_entities}))
+        self.bus.emit(
+            message.reply(
+                "intent.service.padatious.entities.manifest",
+                {"entities": self.padatious_service.registered_entities}))

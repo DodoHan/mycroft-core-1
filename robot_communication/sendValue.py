@@ -1,102 +1,8 @@
-from bluepy.btle import Scanner, DefaultDelegate
 import bluepy.btle as btle
-from enum import Enum
+import time
+
+print("outside")
 '''
-sudo is needed for this functionality
-'''
-
-
-class ScanDelegate(DefaultDelegate):
-
-    def __init__(self):
-        DefaultDelegate.__init__(self)
-
-    def handleDiscovery(self, dev, isNewDev, isNewData):
-        if isNewDev:
-            print("Discovered device", dev.addr)
-        elif isNewData:
-            print("Received new data from", dev.addr)
-
-    @staticmethod
-    def scanBluetoothDevices():
-        scanner = Scanner().withDelegate(ScanDelegate())
-        devices = scanner.scan(10.0)
-
-        for dev in devices:
-            print("Device %s (%s), RSSI=%d dB" %
-                  (dev.addr, dev.addrType, dev.rssi))
-            for (adtype, desc, value) in dev.getScanData():
-                print("  %s = %s" % (desc, value))
-
-
-'''
-Device 88:25:83:f3:e9:f4 (public), RSSI=-53 dB
-  Flags = 06
-  Incomplete 16b Services = 0000ffe0-0000-1000-8000-00805f9b34fb
-  Tx Power = 00
-  Manufacturer = 484d882583f3e9f4
-  16b Service Data = 00b000000000
-  Complete Local Name = OTTO-BLE
-
-'''
-
-
-class BluetoothClient:
-
-    def __init__(self, mac_address, UUID_service):
-        self.mac_address = mac_address
-        self.UUID_service = UUID_service
-
-        # zl-rc04a
-        self.peripheral = btle.Peripheral(mac_address)
-
-        # GET SERVICES
-        services = self.peripheral.getServices()
-        for service in services:
-            print(service)
-
-        # NORMAL get to write to ...
-        self.service = self.peripheral.getServiceByUUID(UUID_service)
-        self.characteristic = self.service.getCharacteristics()[0]
-
-    def disconnect(self):
-        self.peripheral.disconnect()
-
-    def sendCommand(self, commandStr):
-        commandBytes = commandStr.encode('utf-8')
-        self.characteristic.write(commandBytes)
-        # self.characteristic.write(b'M 1 1000\r')
-
-    def executeMovement(self, movement, speed):
-        self.sendCommand(movement.value + ' ' + speed.value + '\r')
-
-
-# ScanDelegate.scanBluetoothDevices()
-
-
-class Movement(Enum):
-    SWING = 'M 8'
-    DANCE = 'M 8'
-    STOP = 'M 0'
-
-
-class MovementSpeed(Enum):
-    FAST = '500'
-    MEDIUM = '1000'
-    SLOW = '1500'
-
-
-'''
-mac_address = "88:25:83:f3:e9:f4"
-UUID_service = "0000ffe0-0000-1000-8000-00805f9b34fb"
-bluetoothClient = BluetoothClient(mac_address, UUID_service)
-bluetoothClient.sendCommand('M 1 1000\r')
-time.sleep(5)
-bluetoothClient.sendCommand('M 0 1000\r')
-bluetoothClient.disconnect()
-'''
-'''
-Command string
 1.Stop: "S\r"
 2.Buzzer: "T a b\r"   a is fre, b is duration
 3.Movement: "M a b c\r" a is which movement, b is speed, c is moveSize (动作幅度)
@@ -145,8 +51,8 @@ Command string
         { title: 'Magic', image: Images.humanoid.mouth.magic, cmd: 'L 0000000010010100001010010000000', stopAtEnd: false },
         { title: 'Victory', image: Images.humanoid.mouth.victory, cmd: 'L 0001100010010100001010010001100', stopAtEnd: false },
         { title: 'Wave', image: Images.humanoid.mouth.wave, cmd: 'L 0000000000011000100001000110000', stopAtEnd: false }
-
-5. Gesture: "H a\r"
+      
+5. Gesture: "H a\r" 
         { title: 'Happy', image: Images.gestures.happy, cmd: 'H 1', stopAtEnd: false },
         { title: 'Super Happy', image: Images.gestures.superhappy, cmd: 'H 2', stopAtEnd: false },
         { title: 'Love', image: Images.gestures.love, cmd: 'H 7', stopAtEnd: false },
@@ -161,7 +67,7 @@ Command string
         { title: 'Victory', image: Images.gestures.victory, cmd: 'H 12', stopAtEnd: false },
         { title: 'Wave', image: Images.gestures.wave, cmd: 'H 11', stopAtEnd: false }
 
-6. Sing (Sound):
+6. Sing (Sound): 
         { title: 'Sing 1', image: Images.sing.mode1, cmd: 'K 16', stopAtEnd: false },
         { title: 'Sing 2', image: Images.sing.mode2, cmd: 'K 17', stopAtEnd: false },
         { title: 'Sing 3', image: Images.sing.mode3, cmd: 'K 18', stopAtEnd: false },
@@ -192,4 +98,117 @@ Command string
   SCmd.addCommand("P", requestRGB);
   SCmd.addDefaultHandler(receiveStop);
 
+'''
+
+
+def letsgobaby():
+    print("turning1on")
+    mac_address = "88:25:83:f3:e9:f4 "
+    p = btle.Peripheral(mac_address)  # zl-rc04a
+
+    # GET SERVICES
+    services = p.getServices()
+    for service in services:
+        print(service)
+
+    # NORMAL get to write to ...
+    UUID_service = "0000ffe0-0000-1000-8000-00805f9b34fb"
+    s = p.getServiceByUUID(UUID_service)  # ffe0
+    c = s.getCharacteristics()[0]
+
+    # 1 is relay1on, 2 is relay1off
+    # c.write((2).to_bytes(1, byteorder='big'))
+    # c.write("N\r".encode())
+
+    # up (forward)
+    c.write(b'M 1\r')
+    time.sleep(5)
+
+    # stop
+    c.write(b'M 0\r')
+    # time.sleep(5)
+
+    # c.write(b'L 001111111111111111111111111111111\r')
+    # time.sleep(5)
+    c.write(b'L\r')
+    c.write(b'L 000000001000010100100011000000000\r')
+    time.sleep(5)
+    c.write(b'L\r')
+    time.sleep(5)
+
+    c.write(b'G 90 85 96 78\r')
+    time.sleep(5)
+
+    # Shore: I know H, H 3 is sad
+    c.write(b'H 3\r')
+    time.sleep(5)
+
+    c.write(b'T 1 2\r')
+    time.sleep(5)
+
+    # down (backward)
+    c.write(b'M 2\r')
+    time.sleep(5)
+    c.write(b'M 3\r')
+    time.sleep(5)
+    '''
+  c.write(b'M 4\r')
+  time.sleep(5)
+  c.write(b'M 5\r')
+  time.sleep(5)
+  c.write(b'M 6\r')
+  time.sleep(5)
+  c.write(b'M 7\r')
+  time.sleep(5)
+  c.write(b'M 8\r')
+  time.sleep(5)
+  c.write(b'M 13\r')
+  time.sleep(5)
+  '''
+    # stop
+    c.write(b'M 0\r')
+    time.sleep(5)
+    '''
+  c.write(b'K 1\r')
+  time.sleep(5)
+  c.write(b'K 2\r')
+  time.sleep(5)
+  c.write(b'K 3\r')
+  time.sleep(5)
+  c.write(b'K 4\r')
+  time.sleep(5)
+  c.write(b'K 5\r')
+  time.sleep(5)
+  c.write(b'K 6\r')
+  time.sleep(5)
+  '''
+
+    p.disconnect()
+
+
+if __name__ == "__main__":
+    letsgobaby()
+
+'''
+C Basic:
+strncpy copy: char *strncpy(char *dest, const char *src, int n)，表示把src所指向的字符串中以src地址开始的前n个字节复制到dest所指的数组中，并返回被复制后的dest
+strtok_r: 为char *strtok_r(char *str, const char *delim, char **saveptr);
+strtok_r函数是strtok函数的可重入版本。str为要分解的字符串，delim为分隔符字符串。char **saveptr参数是一个指向char *的指针变量，用来在strtok_r内部保存切分时的上下文，以应对连续调用分解相同源字符串。
+
+'''
+'''
+Otto_APP_sound_V9
+//-- Function to execute the right movement according the movement command received.
+void move(int moveId) {
+  bool manualMode = false;
+
+  switch (moveId) {
+    case 0:
+      Otto.home();
+      break;
+    case 1: //M 1 1000
+      Otto.walk(1, T, 1);
+      break;
+    case 2: //M 2 1000
+      Otto.walk(1, T, -1);
 '''
