@@ -75,8 +75,22 @@ class BluetoothClient:
 
 
 class Movement(Enum):
+    # Movement
     SWING = 'M 8'
     DANCE = 'M 8'
+    WALK = 'M 1'
+    MOVE_FORWARD = 'M 1'
+    MOVE_BACKWARD = 'M 2'
+    MOVE_LEFT = 'M 3'
+    MOVE_RIGHT = 'M 4'
+    MOON_WALK_LEFT = "M 7"
+    MOON_WALK_RIGHT = "M 7"
+    TIP_TOE = 'M 14'
+    BEND_LEFT = 'M 16'
+    BEND_RIGHT = 'M 15'
+    # Gesture
+    HAPPY = 'H 1'
+    SAD = 'H 3'
     STOP = 'M 0'
 
 

@@ -21,6 +21,7 @@ from urllib.request import urlopen
 from urllib.request import Request
 from urllib.error import URLError
 from urllib.parse import urlencode
+from mycroft import MycroftSkill
 import json
 import time
 
@@ -90,11 +91,10 @@ class RasaSkill(MycroftSkill):
         LOG.info(result_str)
 
         recognized = json.loads(result_str)
-        utteranceFromRasa = recognized[0]['custom']['text'][0]['option']
+        utteranceFromRasa = recognized[0]['custom']['option'][0]['utter']
         LOG.info(utteranceFromRasa)
-        
-        # Shore: action
 
+        # Shore: action
         action = recognized[0]['custom']['action4VoiceAssistant']
         LOG.info('action:' + action)
         '''
@@ -104,15 +104,33 @@ class RasaSkill(MycroftSkill):
         if (action == 'action.robot.dance'):
             self.bluetoothClient.executeMovement(Movement.DANCE,
                                                  MovementSpeed.MEDIUM)
+        elif (action == 'action.robot.walk'):
+            self.bluetoothClient.executeMovement(Movement.WALK,
+                                                 MovementSpeed.MEDIUM)
+        elif (action == 'action.robot.move_forward'):
+            self.bluetoothClient.executeMovement(Movement.MOVE_FORWARD,
+                                                 MovementSpeed.MEDIUM)
+        elif (action == 'action.robot.move_backward'):
+            self.bluetoothClient.executeMovement(Movement.MOVE_BACKWARD,
+                                                 MovementSpeed.MEDIUM)
+        elif (action == 'action.robot.move_right'):
+            self.bluetoothClient.executeMovement(Movement.MOVE_RIGHT,
+                                                 MovementSpeed.MEDIUM)
+        elif (action == 'action.robot.move_left'):
+            self.bluetoothClient.executeMovement(Movement.MOVE_LEFT,
+                                                 MovementSpeed.MEDIUM)
+        elif (action == 'action.robot.smile'):
+            self.bluetoothClient.executeMovement(Movement.HAPPY,
+                                                 MovementSpeed.MEDIUM)
         elif (action == 'action.robot.stop'):
             self.bluetoothClient.executeMovement(Movement.STOP,
                                                  MovementSpeed.MEDIUM)
 
         '''
         - custom:
-            text:
-                - option: "Sure, let me dance."
-                - option: "Yes, let me dance."
+            option:
+                - utter: "Sure, let me dance."
+                - utter: "Yes, let me dance."
             action4VoiceAssistant: "action.robot.dance"
         '''
         self.speak(str(utteranceFromRasa), expect_response=True)
